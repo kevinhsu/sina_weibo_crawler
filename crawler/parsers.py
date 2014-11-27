@@ -14,7 +14,7 @@ from threading import Lock
 from pyquery import PyQuery as pq
 
 class GetPage(object):
-    def __init__(self, url, span = True):
+    def __init__(self, url, span = False):
         self.url = url
         if span:
             time.sleep(random.uniform(0,40))
@@ -26,6 +26,7 @@ class GetPage(object):
         while tries <= 6:
             try:    
                 req = urllib2.Request(url= self.url, data=urllib.urlencode({}), headers=headers)
+                req.add_header('Cookie', ' _T_WM=511aa5eed6b2c72f7f382b1aecd621c5; SUB=_2AkMjKdB8a8NlrABXkP4dyGjgaYpH-jyQZeCKAn7oJhMyCBh87lJQqSeqnkupHcclOsWYm2FjnVafu0aesQ..; gsid_CTandWM=4u0L364912ounBcP2kXBMft7d49; M_WEIBOCN_PARAMS=rl%3D1')
                 result = urllib2.urlopen(req)  
                 html = result.read()
                 break
@@ -111,19 +112,22 @@ class WeiboParser(object):
         try:
             div = doc('div#pagelist.pa')
             pages = int(div('div input:first').attr('value'))
-            doc.find('div.c').each(_parse_weibo)
+            #doc.find('div.c').each(_parse_weibo)
         except:
             pages = 1
             pass
         
         if pages > 500:
             pages = 500
-        for i in range(2,pages+1):
+        for i in range(1,pages+1):
             self.url = 'http://weibo.cn/'+str(self.uid)+'/profile?page='+str(i)
             page = GetPage(self.url)
             html = page.fetch()
             doc = pq(html)
             doc.find('div.c').each(_parse_weibo)
+
+
+
 
 class InfoParser(object):
     def __init__(self, url_start, user, storage):
@@ -139,7 +143,8 @@ class InfoParser(object):
             return
         tip = doc.find('div.tip')
         i = 0
-        info = {u'经历':[]}
+        #info = {u'经历':[]}
+        info={}
         for div in divAll('.c'):
             if tip.eq(i).html() != '其他信息':
                 #print tip.eq(i).html()
@@ -151,7 +156,8 @@ class InfoParser(object):
                         continue
                     kv = tuple(itm.split(':', 1))
                     if len(kv) != 2:
-                        info[u'经历'].append(kv[0].strip())
+                        #info[u'经历'].append(kv[0].strip())
+                        continue
                     else:
                         k, v = kv[0], pq(kv[1]).text().strip('更多>>').strip()
                         info[k] = v
@@ -161,44 +167,36 @@ class InfoParser(object):
         self.storage.save_info(info)
 
 class RelationshipParser(object):
-    def __init__(self, url_start, user, storage):
+    def __init__(self, url_start, user, storage,relation):
         self.url = url_start
         self.uid = user
         self.storage = storage
+        self.relation=relation
 
     def parse(self):
+        #将table中follow或者fans解析
         def _parse_user(i):
             node = pq(this)
-            if len(node.children('img')) > 0:
-                return
-            self.storage.save_user((self.uids[self.j],node.text(), ))
-            self.j += 1
-            # self.storage.save_user((node.attr('href'), self.user, ))
-        def _parse_uid(i):
-            node = pq(this)
-            # self.storage.save_user((node.attr('href'), node.text(), ))
-            if node.attr('name') == 'uidList':
-                self.uids = node.attr('value').split(',')
-                self.j = 0
+            f_uid=node('a:first').attr('href').replace('http://weibo.cn/','').replace('u/','')
+            nickname=node('a').eq(1).text()
+            self.storage.save_user((self.relation,f_uid,nickname, ))
 
         page = GetPage(self.url)
         html = page.fetch()
         doc = pq(html)
         try:
-            div = doc('div#pagelist.pa')
-            pages = int(div('div input:first').attr('value'))
-            doc('.c div input').each(_parse_uid)
-            doc.find('table tr td a:first').each(_parse_user)
+            div = doc('div#pagelist')
+            pages = int(div('div input:first').attr('value')) #获取页数
         except:
             pages = 1
             pass
+
         if pages > 500:
             pages = 500
-        for i in range(2,pages+1):
-            self.url = 'http://weibo.cn/'+str(self.uid)+'/follow?page='+str(i)
+        #处理每一页
+        for i in range(1,pages+1):
+            self.url = 'http://weibo.cn/'+str(self.uid)+'/'+self.relation+'?page='+str(i)
             page = GetPage(self.url)
             html = page.fetch()
             doc = pq(html)
-            doc('.c div input').each(_parse_uid)
-            doc.find('table tr td a:first').each(_parse_user)
-
+            doc('table').each(_parse_user) #每个follow或者fans

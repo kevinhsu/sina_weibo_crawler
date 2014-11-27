@@ -34,7 +34,7 @@ def main(db='file', folder=None, uids=[]):
         while uids:
             begin = datetime.datetime.now()
             interval = (begin-end).seconds
-            while mythreads:
+            while mythreads and uids:
                 end = datetime.datetime.now()
                 if interval > 10:
                     if change >= 3:
@@ -68,11 +68,15 @@ def main(db='file', folder=None, uids=[]):
                                          'when is "file", you must define folder parameter.')
                     crawler = UserCrawler(uid, callbacks=cb, storage=storage)
                     
+                    crawler.start()
+                    cb()
+                    '''
                     if not storage.completes.find_one({'uid': uid}):
                         crawler.start()
                     else:
                         cb()
                         continue
+                    '''
                 except Exception, e:
                     # raise e
                     logger.exception(e)
@@ -82,7 +86,7 @@ if __name__ == "__main__":
     reload(sys)
     sys.setdefaultencoding('utf-8')
 
-    db = 'mongo'
+    db = 'file'
     folder = mypath
     uids = startUid
     main(db=db, folder=folder, uids=uids)

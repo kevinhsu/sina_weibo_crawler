@@ -17,14 +17,14 @@ class UserCrawler(threading.Thread):
         logger.info('fetch user: %s' % user)
         self.uid = user
         if self.uid is not None:
-            self.weibo_start = 'http://weibo.cn/u/%s' % self.uid
+            self.weibo_start = 'http://weibo.cn/%s/profile' % self.uid
+            self.info_start = 'http://weibo.cn/%s/info' % self.uid   
+            self.follow_start = 'http://weibo.cn/%s/follow' % self.uid
+            self.fan_start = 'http://weibo.cn/%s/fans' % self.uid
 
-        self.storage = storage
-        self.callbacks = callbacks
+            self.storage = storage
+            self.callbacks = callbacks
 
-        self.info_start = 'http://weibo.cn/%s/info' % self.uid   
-        self.follow_start = 'http://weibo.cn/%s/follow' % self.uid
-        self.fan_start = 'http://weibo.cn/%s/fans' % self.uid
     
     def crawl_weibos(self):
         weibo = WeiboParser(self.weibo_start, self.uid, self.storage)
@@ -37,29 +37,34 @@ class UserCrawler(threading.Thread):
         return True
             
     def crawl_follow(self):
-        relation = RelationshipParser(self.follow_start, self.uid, self.storage)
+        relation = RelationshipParser(self.follow_start, self.uid, self.storage,'follow')
         relation.parse()
         return True
             
-    # def crawl_fans(self):
-    #     RelationshipParser(self.fan_start)
-    #     return True
+    def crawl_fans(self):
+        relation = RelationshipParser(self.fan_start,self.uid, self.storage,'fans')
+        relation.parse()
+        return True
             
     def crawl(self):
-        print "start to fetch %s's follows" % self.uid
-        flag_follow = self.crawl_follow()
         print "start to fetch %s's info" % self.uid
         flag_info = self.crawl_info()
+        print "start to fetch %s's follows" % self.uid
+        flag_follow = self.crawl_follow()
+        print "start to fetch %s's fans" % self.uid
+        flag_fan = self.crawl_fans()
         print "start to fetch %s's weibo" % self.uid
         flag_weibo = self.crawl_weibos()
         
-        if flag_follow and flag_info and flag_weibo:
+        if flag_follow and flag_info and flag_weibo and flag_fan:
         # Add to completes when finished
             self.storage.complete()
             self.callbacks()
 
     def run(self):
         assert self.storage is not None
+        assert self.uid is not None
+
         try:
             self.crawl()
         except Exception, e:

@@ -46,7 +46,7 @@ class FileStorage(Storage):
     def __init__(self, uid, folder, create=True, user=None):
         super(FileStorage, self).__init__(uid, user=user)
         self.path = os.path.join(folder, str(uid))
-        import pdb; pdb.set_trace()
+       # import pdb; pdb.set_trace()
         self.crawled = os.path.exists(self.path)
         if create is True and not os.path.exists(self.path):
             os.makedirs(self.path)
@@ -54,14 +54,14 @@ class FileStorage(Storage):
         self.f = open(self.f_path, 'w+')
         self.info_f_path = os.path.join(self.path, 'info.txt')
         self.info_f = open(self.info_f_path, 'w')
-        self.users_f_path = os.path.join(self.path, 'users.txt')
+        self.users_f_path = os.path.join(self.path, 'follows_fans.txt')
         self.users_f = open(self.users_f_path, 'w+')
         
     def save_weibo(self, weibo):
         result = unicode(weibo['content'])
         if 'forward' in weibo:
             result += '// %s' % weibo['forward']
-        self.f.write(result + ' ' + str(weibo['ts']) + '\n')
+        self.f.write(result + ' ' + str(weibo['ts']) + '\n' + '\n' )
         
     def save_weibos(self, weibos):
         for weibo in weibos:
@@ -69,10 +69,10 @@ class FileStorage(Storage):
             
     def save_info(self, info):
         for k, v in info.iteritems():
-            self.info_f.write('%s：%s\n' % (k, v))
+            self.info_f.write('%s:%s\n' % (k, v))
             
     def save_user(self, user_tuple):
-        self.users_f.write('%s：%s' % user_tuple + '\n')
+        self.users_f.write('%s:%s:%s' % user_tuple + '\n')
         
     def save_users(self, user_tuples):
         for user_tuple in user_tuples:
