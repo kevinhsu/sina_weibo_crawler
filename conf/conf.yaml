@@ -10,8 +10,10 @@ mongo:
     host: localhost
     port: 27017
 login:
-  - username: '********'
-    password: '********'
-startUid: ["2104931705"]
+  - username: '***'
+    password: '*****'
+  - username: '******'
+    password: '**********'
+startUid: ["3686843257"]
 mypath: 'C:\OUTPUT\GitHub'
 instance_index: 0
