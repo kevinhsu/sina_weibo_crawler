@@ -45,11 +45,13 @@ class Storage(object):
 class FileStorage(Storage):
     def __init__(self, uid, folder, create=True, user=None):
         super(FileStorage, self).__init__(uid, user=user)
+        self.folder=folder
         self.path = os.path.join(folder, str(uid))
        # import pdb; pdb.set_trace()
         self.crawled = os.path.exists(self.path)
         if create is True and not os.path.exists(self.path):
             os.makedirs(self.path)
+
         self.f_path = os.path.join(self.path, 'weibos.txt')
         self.f = open(self.f_path, 'w+')
         self.info_f_path = os.path.join(self.path, 'info.txt')
@@ -79,7 +81,7 @@ class FileStorage(Storage):
             self.save_user(user_tuple)
             
     def error(self):
-        f = open(os.path.join(self.path, 'errors.txt'), 'w+')
+        f = open(os.path.join(self.folder, 'errors.txt'), 'a')
         try:
             f.write(str(self.uid) + '\n')
         finally:
@@ -89,7 +91,7 @@ class FileStorage(Storage):
         pass      
 
     def complete(self):
-        f = open(os.path.join(self.path, 'completes.txt'), 'w+')
+        f = open(os.path.join(self.folder, 'completes.txt'), 'a')
         try:
             f.write(str(self.uid) + '\n')
         finally:
@@ -99,7 +101,12 @@ class FileStorage(Storage):
         self.f.close()
         self.info_f.close()
         self.users_f.close()
-        
+ 
+
+
+
+
+
 class MongoStorage(Storage):
     def __init__(self, uid, follow=None, user=None):
         self.uid = uid
@@ -117,8 +124,10 @@ class MongoStorage(Storage):
         self.wait_crawled = self.db.wait_crawled
         self.completes = self.db.completes
         self.errors_data = self.db.errors
+        self.domain=self.db.domain
         
         data = self.weibo_data.find_one({'uid': self.uid})
+
         self.crawled = data is not None
         
         if data is None and follow is None:
@@ -133,8 +142,11 @@ class MongoStorage(Storage):
 #        content = weibo['content'].replace('http://', '!#$%&')\
 #                    .split('//')[0].replace('!#$%&', 'http://')\
 #                    .strip()
+        '''
         content = self.replace_reg.sub('', weibo['content'])\
                     .split('//', 1)[0].strip()
+        '''
+        content=weibo['content']
         if len(content) == 0:
             return
         self.weibo_data.update({'uid': self.uid}, {'$push': { 'weibos':
@@ -163,13 +175,29 @@ class MongoStorage(Storage):
             self.info_data.insert({'uid': self.uid, 'info': mongo_info})
         
     def save_user(self, user_tuple):
-        followId, nickname = user_tuple
-        self.relation_data.update({'uid': self.uid}, {'$addToSet': {'follows': followId}}, upsert=True)
+        relation,Id, nickname = user_tuple
+        if relation=="follow":
+            self.relation_data.update({'uid': self.uid}, {'$addToSet': {'follows': Id}}, upsert=True)
+        elif relation=="fans":
+            self.relation_data.update({'uid': self.uid}, {'$addToSet': {'fans': Id}}, upsert=True)
         
     def save_users(self, user_tuples):
         for user_tuple in user_tuples:
             self.save_user(user_tuple)
-            
+    
+    def save_domain(self,domain_tuple):
+        domain={}
+        domain["uid"]=domain_tuple[0]
+        domain["domain"]=domain_tuple[1]
+        self.domain.save(domain)
+
+    def get_domain(self,domain):
+        tmp=self.domain.find_one({"domain":domain})
+        if tmp:
+            return tmp["uid"]
+        else:
+            return None
+
     def error(self):
         errors = self.db.errors
         error = {'uid': self.uid}

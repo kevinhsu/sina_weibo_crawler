@@ -12,6 +12,7 @@ import random, time
 from datetime import datetime, timedelta
 from threading import Lock
 from pyquery import PyQuery as pq
+import lxml.html as HTML
 
 class GetPage(object):
     def __init__(self, url, span = False):
@@ -20,14 +21,19 @@ class GetPage(object):
             time.sleep(random.uniform(0,40))
         
     def fetch(self):
-        print self.url
+        print "fetch ",self.url
         headers = {'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'}
         tries = 0
         while tries <= 6:
             try:    
                 req = urllib2.Request(url= self.url, data=urllib.urlencode({}), headers=headers)
-                req.add_header('Cookie', ' _T_WM=511aa5eed6b2c72f7f382b1aecd621c5; SUB=_2AkMjKdB8a8NlrABXkP4dyGjgaYpH-jyQZeCKAn7oJhMyCBh87lJQqSeqnkupHcclOsWYm2FjnVafu0aesQ..; gsid_CTandWM=4u0L364912ounBcP2kXBMft7d49; M_WEIBOCN_PARAMS=rl%3D1')
+                req.add_header('Cookie', ' _T_WM=511aa5eed6b2c72f7f382b1aecd621c5; SUB=_2A255ed7tDeTxGeVI41QZ9C3OzjuIHXVaheKlrDV6PUJbrdAKLWakkW1T5z2JxKhzQMl96SRfqDC6nu6CjQ..; gsid_CTandWM=4uPb2ba21zP85mQNkDPFnft7d49; M_WEIBOCN_PARAMS=rl%3D1')
                 result = urllib2.urlopen(req)  
+                
+                if result.geturl()!=self.url:
+                    print result.geturl()
+                    raise ValueError(result.geturl())
+
                 html = result.read()
                 break
             except Exception, e:
@@ -45,6 +51,7 @@ class WeiboParser(object):
         self.uid = user
         self.storage = storage
         self.url = url_start
+        self.error=False
         
     def _strptime(self, string, format_):
         self.strptime_lock.acquire()
@@ -77,7 +84,6 @@ class WeiboParser(object):
     def parse(self):
         def _parse_weibo(i):
             node = pq(this)
-            
             if node.attr('id') is None:
                 return
             
@@ -108,6 +114,9 @@ class WeiboParser(object):
         
         page = GetPage(self.url)
         html = page.fetch()
+        if (html is None): 
+            self.error=True
+            return
         doc = pq(html)
         try:
             div = doc('div#pagelist.pa')
@@ -120,9 +129,14 @@ class WeiboParser(object):
         if pages > 500:
             pages = 500
         for i in range(1,pages+1):
+            if (self.error):
+                return
             self.url = 'http://weibo.cn/'+str(self.uid)+'/profile?page='+str(i)
             page = GetPage(self.url)
             html = page.fetch()
+            if (html is None): 
+                self.error=True
+                return
             doc = pq(html)
             doc.find('div.c').each(_parse_weibo)
 
@@ -134,17 +148,21 @@ class InfoParser(object):
         self.url = url_start
         self.user = user
         self.storage = storage
+        self.error=False
     def parse(self):
         page = GetPage(self.url)
         html = page.fetch()
+        if (html is None): 
+            self.error=True
+            return
         doc = pq(html)
         divAll = doc.find('div.tip').next('div.c')
         if divAll is None:
             return
         tip = doc.find('div.tip')
         i = 0
-        #info = {u'经历':[]}
-        info={}
+        info = {u'经历':[]}
+        #info={}
         for div in divAll('.c'):
             if tip.eq(i).html() != '其他信息':
                 #print tip.eq(i).html()
@@ -156,7 +174,7 @@ class InfoParser(object):
                         continue
                     kv = tuple(itm.split(':', 1))
                     if len(kv) != 2:
-                        #info[u'经历'].append(kv[0].strip())
+                        info[u'经历'].append(kv[0].strip())
                         continue
                     else:
                         k, v = kv[0], pq(kv[1]).text().strip('更多>>').strip()
@@ -172,17 +190,47 @@ class RelationshipParser(object):
         self.uid = user
         self.storage = storage
         self.relation=relation
+        self.error=False
 
     def parse(self):
+        def _parse_domain(domain): #解析个性化域名，转为数字uid
+            f_uid=self.storage.get_domain(domain) #判断是否已经解析过
+            if f_uid is not None:return f_uid
+
+            page = GetPage("http://weibo.cn/"+domain)
+            html = page.fetch()
+            if (html is None): 
+                self.error=True
+                return
+            try:
+                url=HTML.fromstring(html).xpath("//div[@class='u']/div[@class='tip2']/a/@href")[0]
+                #print url
+                f_uid=url.split('/')[1]
+                if f_uid.isdigit():
+                    self.storage.save_domain((f_uid,domain,))
+                    return f_uid
+                else:
+                    self.error=True
+                    return None
+            except:
+                self.error=True
+                return None
+                pass
         #将table中follow或者fans解析
         def _parse_user(i):
             node = pq(this)
             f_uid=node('a:first').attr('href').replace('http://weibo.cn/','').replace('u/','')
             nickname=node('a').eq(1).text()
-            self.storage.save_user((self.relation,f_uid,nickname, ))
+            if (not f_uid.isdigit()):
+                f_uid=_parse_domain(f_uid)
+            if (f_uid is None): return
+            self.storage.save_user((self.relation,f_uid,nickname,))
 
         page = GetPage(self.url)
         html = page.fetch()
+        if (html is None): 
+            self.error=True
+            return
         doc = pq(html)
         try:
             div = doc('div#pagelist')
@@ -195,8 +243,13 @@ class RelationshipParser(object):
             pages = 500
         #处理每一页
         for i in range(1,pages+1):
+            if (self.error): #如果发生错误
+                return
             self.url = 'http://weibo.cn/'+str(self.uid)+'/'+self.relation+'?page='+str(i)
             page = GetPage(self.url)
             html = page.fetch()
+            if (html is None): 
+                self.error=True
+                return
             doc = pq(html)
             doc('table').each(_parse_user) #每个follow或者fans

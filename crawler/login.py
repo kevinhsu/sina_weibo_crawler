@@ -7,7 +7,7 @@
 
  changed on 2014-11-26
  Author: Fancy Olive
- Email: sciencezfx@tju.edu.cn
+ Email: springzfx@gmail.com
 '''
 
 import urllib2
@@ -89,5 +89,5 @@ class WeiboLogin(object):
 
 
 if __name__ == "__main__":
-    WBLogin = WeiboLogin("15620798422", "*******",'../savecookie.txt')
+    WBLogin = WeiboLogin("**********", "*********",'../savecookie.txt') #需要传入正确的cookie才能登录
     WBLogin.login()

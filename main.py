@@ -12,7 +12,7 @@ from crawler.login import WeiboLogin
 from conf.config import login_list, startUid, mypath
 from crawler.log import logger
             
-mythreads = range(3)
+mythreads = range(5) #id线程池
 
 def callback(threadId):
     def inner():
@@ -36,6 +36,7 @@ def main(db='file', folder=None, uids=[]):
             interval = (begin-end).seconds
             while mythreads and uids:
                 end = datetime.datetime.now()
+                #如果有三次爬取用户的间隔时间都超过了10秒，那么就换下一个用户登录，防止反爬虫或掉线
                 if interval > 10:
                     if change >= 3:
                         change = 1
@@ -54,10 +55,10 @@ def main(db='file', folder=None, uids=[]):
                             WBLogin.login()
                     change += 1
 
-                uid = uids.pop()
-                threadId = mythreads.pop()
-                cb = callback(threadId)
-                #import pdb; pdb.set_trace()
+                uid = uids.pop() #分配一个uid
+                threadId = mythreads.pop() #分配一个线程id
+                cb = callback(threadId)  #当该线程结束后调用cb，将线程id返回线程池
+
                 try:
                     if db == 'file' and folder is not None:
                         storage = FileStorage(uid, folder)
@@ -68,25 +69,24 @@ def main(db='file', folder=None, uids=[]):
                                          'when is "file", you must define folder parameter.')
                     crawler = UserCrawler(uid, callbacks=cb, storage=storage)
                     
-                    crawler.start()
-                    cb()
-                    '''
+                    #crawler.start()
+                    
                     if not storage.completes.find_one({'uid': uid}):
                         crawler.start()
                     else:
                         cb()
                         continue
-                    '''
                 except Exception, e:
-                    # raise e
                     logger.exception(e)
+
+                    
 
 if __name__ == "__main__":
     import sys
     reload(sys)
     sys.setdefaultencoding('utf-8')
 
-    db = 'file'
+    db = 'mongo'
     folder = mypath
     uids = startUid
     main(db=db, folder=folder, uids=uids)

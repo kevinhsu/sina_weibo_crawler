@@ -29,22 +29,22 @@ class UserCrawler(threading.Thread):
     def crawl_weibos(self):
         weibo = WeiboParser(self.weibo_start, self.uid, self.storage)
         weibo.parse()
-        return True
+        return (not weibo.error)
 
     def crawl_info(self):
         info = InfoParser(self.info_start, self.uid, self.storage)
         info.parse()
-        return True
+        return (not info.error)
             
     def crawl_follow(self):
         relation = RelationshipParser(self.follow_start, self.uid, self.storage,'follow')
         relation.parse()
-        return True
+        return (not relation.error)
             
     def crawl_fans(self):
         relation = RelationshipParser(self.fan_start,self.uid, self.storage,'fans')
         relation.parse()
-        return True
+        return (not relation.error)
             
     def crawl(self):
         print "start to fetch %s's info" % self.uid
@@ -52,13 +52,17 @@ class UserCrawler(threading.Thread):
         print "start to fetch %s's follows" % self.uid
         flag_follow = self.crawl_follow()
         print "start to fetch %s's fans" % self.uid
-        flag_fan = self.crawl_fans()
+        flag_fans = self.crawl_fans()
         print "start to fetch %s's weibo" % self.uid
         flag_weibo = self.crawl_weibos()
         
-        if flag_follow and flag_info and flag_weibo and flag_fan:
+        if flag_follow and flag_info and flag_weibo and flag_fans:
         # Add to completes when finished
+            print "complete",self.uid
             self.storage.complete()
+            self.callbacks()
+        else:
+            self.storage.error()
             self.callbacks()
 
     def run(self):
