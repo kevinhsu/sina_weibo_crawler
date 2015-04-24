@@ -22,7 +22,11 @@ Notes:
 8. I also offer an executale file built in windowsX64, under the exe folder.
 
 others:
+
 conf/conf.yaml ----- configure file
+
 conf/savecookie.txt  ------ cookies
+
 crawler/crawler.log  ------ log for exception
+
 setup.spec ----- for pyinstaller(a python module) to bulid an exe, see setup.txt
