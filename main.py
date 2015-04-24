@@ -4,15 +4,21 @@
  Created on 2014-7-10
  Author: Gavin_Han
  Email: muyaohan@gmail.com
+
+ Modified on 2015-4-19
+ Author: Fancy
+ Email: springzfx@gmail.com
 '''
 import time, datetime
 from crawler.crawler import UserCrawler
 from crawler.storage import MongoStorage, FileStorage
 from crawler.login import WeiboLogin
-from conf.config import login_list, startUid, mypath
+from conf.config import login_list, mypath, cookiepath,threadNum  #,startUid
+from tool.input_list import crawl_list as startUid
 from crawler.log import logger
+import sys
             
-mythreads = range(5) #id线程池
+mythreads = range(threadNum) #id线程池
 
 def callback(threadId):
     def inner():
@@ -20,12 +26,30 @@ def callback(threadId):
             mythreads.append(threadId)
     return inner
 
+def confirm():
+    print ' '
+    print "Output: "+mypath
+    print "threadNum:  "+str(threadNum)
+    print "crawler list:  ",mypath+'list.txt',
+    # for uid in startUid:print uid+' ',
+    print ' '
+
+    while True:
+        ch = raw_input("Confirm and continue(y/n): ")
+        if ch=='y' or ch=='yes':
+            return
+        elif ch=='n' or ch=='no':
+            sys.exit()
+        else:
+            print "makesure your input is 'y/n' or 'yes/no'?"
+
 def main(db='file', folder=None, uids=[]):
+    confirm()
     change = 1; i = 0; 
     username = login_list[i]['username']
     password = login_list[i]['password']
-    WBLogin = WeiboLogin(username, password)
-    WBLogin.login()
+    WBLogin = WeiboLogin(username, password,cookiepath)
+    if not WBLogin.login():exit()
     end = datetime.datetime.now()
     i += 1
     if len(uids) == 0:
@@ -41,18 +65,20 @@ def main(db='file', folder=None, uids=[]):
                     if change >= 3:
                         change = 1
                         if i <= len(login_list)-1:
+                            print "sleeping"
                             time.sleep(20)
+                            print "waking"                            
                             username = login_list[i]['username']
                             password = login_list[i]['password']
-                            WBLogin = WeiboLogin(username, password)
-                            WBLogin.login()
+                            WBLogin = WeiboLogin(username, password,cookiepath)
+                            if not WBLogin.login():sys.exit(1)
                             i += 1
                         else:
                             i = 0
                             username = login_list[i]['username']
                             password = login_list[i]['password']
-                            WBLogin = WeiboLogin(username, password)
-                            WBLogin.login()
+                            WBLogin = WeiboLogin(username, password,cookiepath)
+                            if not WBLogin.login():sys.exit(1)
                     change += 1
 
                 uid = uids.pop() #分配一个uid
@@ -62,20 +88,21 @@ def main(db='file', folder=None, uids=[]):
                 try:
                     if db == 'file' and folder is not None:
                         storage = FileStorage(uid, folder)
+                        crawler = UserCrawler(uid, callbacks=cb, storage=storage)
+                        crawler.start()
                     elif db == 'mongo':
                         storage = MongoStorage(uid)
+                        crawler = UserCrawler(uid, callbacks=cb, storage=storage)
+                        if not storage.completes.find_one({'uid': uid}):
+                            crawler.start()
+                            print "hi"
+                        else:
+                            cb()
+                            continue
                     else:
                         raise ValueError('db must be "file" or "mongo", ' + 
                                          'when is "file", you must define folder parameter.')
-                    crawler = UserCrawler(uid, callbacks=cb, storage=storage)
                     
-                    #crawler.start()
-                    
-                    if not storage.completes.find_one({'uid': uid}):
-                        crawler.start()
-                    else:
-                        cb()
-                        continue
                 except Exception, e:
                     logger.exception(e)
 
@@ -86,7 +113,7 @@ if __name__ == "__main__":
     reload(sys)
     sys.setdefaultencoding('utf-8')
 
-    db = 'mongo'
+    db = 'file'
     folder = mypath
     uids = startUid
     main(db=db, folder=folder, uids=uids)

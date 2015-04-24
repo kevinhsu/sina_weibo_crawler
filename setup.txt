@@ -1,0 +1,6 @@
+with pyinstaller you can build an exe
+pyinstaller.exe main.py  (create main.spec)
+pyi-builder.exe main.spec 
+
+you can use 'setup.spec' directly.
+

@@ -4,12 +4,16 @@
  Created on 2014-7-10
  Author: Gavin_Han
  Email: muyaohan@gmail.com
+
+ Modeified on 2015-4-19
+ Author: Fancy
+ Email: springzfx@gmail.com
 '''
 
 import os
 import re
 
-from pymongo import Connection
+from pymongo import MongoClient #Connection
 
 from conf.config import mongo_host, mongo_port
 
@@ -52,12 +56,16 @@ class FileStorage(Storage):
         if create is True and not os.path.exists(self.path):
             os.makedirs(self.path)
 
+        self.domains_f=open(os.path.join(self.folder,'domains.txt'),'w')
         self.f_path = os.path.join(self.path, 'weibos.txt')
         self.f = open(self.f_path, 'w+')
         self.info_f_path = os.path.join(self.path, 'info.txt')
         self.info_f = open(self.info_f_path, 'w')
         self.users_f_path = os.path.join(self.path, 'follows_fans.txt')
         self.users_f = open(self.users_f_path, 'w+')
+
+        self.domains={}
+
         
     def save_weibo(self, weibo):
         result = unicode(weibo['content'])
@@ -80,6 +88,16 @@ class FileStorage(Storage):
         for user_tuple in user_tuples:
             self.save_user(user_tuple)
             
+    def save_domain(self,domain_tuple):
+        self.domains[domain_tuple[1]]=domain_tuple[0]
+        
+
+    def get_domain(self,domain):
+        if self.domains.has_key(domain):
+            return self.domains[domain]
+        else:
+            return None
+
     def error(self):
         f = open(os.path.join(self.folder, 'errors.txt'), 'a')
         try:
@@ -101,6 +119,12 @@ class FileStorage(Storage):
         self.f.close()
         self.info_f.close()
         self.users_f.close()
+        for domain,uid in self.domains.items():
+            self.domains_f.write(str(uid)+'\t'+str(domain)+'\n');
+        self.domains_f.close()
+
+    # def __del__():
+        
  
 
 
@@ -113,9 +137,9 @@ class MongoStorage(Storage):
         self.user = user
         self.follow = follow
         if mongo_host is not None or mongo_port is not None:
-            self.connection = Connection(mongo_host, mongo_port)
+            self.connection = MongoClient(mongo_host, mongo_port)
         else:
-            self.connection = Connection()
+            self.connection = MongoClient()
         self.db = self.connection.sina
         
         self.info_data = self.db.info

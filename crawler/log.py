@@ -8,7 +8,7 @@
 
 import logging
 import logging.handlers
-import os
+import os,sys
 
 from conf.config import instance_index
 
@@ -32,4 +32,12 @@ def get_logger(filename):
     
     return logger
 
-logger = get_logger(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'crawler.log'))
+# if getattr(sys, 'frozen', None):
+#     basedir = sys._MEIPASS
+# else:
+#     basedir = os.path.dirname(__file__)
+if getattr(sys, 'frozen', None):
+    basedir = os.path.abspath(os.path.dirname(sys.executable))  
+else:
+    basedir = os.path.dirname(os.path.abspath(__file__))
+logger = get_logger(os.path.join(basedir, 'crawler.log'))

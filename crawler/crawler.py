@@ -4,11 +4,19 @@
  Created on 2014-7-10
  Author: Gavin_Han
  Email: muyaohan@gmail.com
+
+ Modeified on 2015-4-19
+ Author: Fancy
+ Email: springzfx@gmail.com
 '''
 
 import threading
 from parsers import WeiboParser, InfoParser, RelationshipParser
 from log import logger
+import sys
+sys.path.append("..")
+from conf.config import data
+
 
 class UserCrawler(threading.Thread):
     def __init__(self, user, callbacks=None, storage=None):
@@ -47,14 +55,25 @@ class UserCrawler(threading.Thread):
         return (not relation.error)
             
     def crawl(self):
-        print "start to fetch %s's info" % self.uid
-        flag_info = self.crawl_info()
-        print "start to fetch %s's follows" % self.uid
-        flag_follow = self.crawl_follow()
-        print "start to fetch %s's fans" % self.uid
-        flag_fans = self.crawl_fans()
-        print "start to fetch %s's weibo" % self.uid
-        flag_weibo = self.crawl_weibos()
+        flag_follow=True
+        flag_info=True
+        flag_weibo=True
+        flag_fans=True
+        if data['info']==1:
+            print "start to fetch %s's info" % self.uid
+            flag_info = self.crawl_info()
+
+        if data['follows']==1:
+            print "start to fetch %s's follows" % self.uid
+            flag_follow = self.crawl_follow()
+
+        if data['fans']==1:
+            print "start to fetch %s's fans" % self.uid
+            flag_fans = self.crawl_fans()
+
+        if data['weibo']==1:            
+            print "start to fetch %s's weibo" % self.uid
+            flag_weibo = self.crawl_weibos()
         
         if flag_follow and flag_info and flag_weibo and flag_fans:
         # Add to completes when finished

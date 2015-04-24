@@ -4,46 +4,20 @@
  Created on 2014-7-10
  Author: Gavin_Han
  Email: muyaohan@gmail.com
+
+ Modeified on 2015-4-19
+ Author: Fancy
+ Email: springzfx@gmail.com
 '''
 
 import re
-import urllib,urllib2
-import random, time
 from datetime import datetime, timedelta
 from threading import Lock
 from pyquery import PyQuery as pq
+from fetch import page
+import random, time
 import lxml.html as HTML
 
-class GetPage(object):
-    def __init__(self, url, span = False):
-        self.url = url
-        if span:
-            time.sleep(random.uniform(0,40))
-        
-    def fetch(self):
-        print "fetch ",self.url
-        headers = {'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'}
-        tries = 0
-        while tries <= 6:
-            try:    
-                req = urllib2.Request(url= self.url, data=urllib.urlencode({}), headers=headers)
-                req.add_header('Cookie', ' _T_WM=511aa5eed6b2c72f7f382b1aecd621c5; SUB=_2A255ed7tDeTxGeVI41QZ9C3OzjuIHXVaheKlrDV6PUJbrdAKLWakkW1T5z2JxKhzQMl96SRfqDC6nu6CjQ..; gsid_CTandWM=4uPb2ba21zP85mQNkDPFnft7d49; M_WEIBOCN_PARAMS=rl%3D1')
-                result = urllib2.urlopen(req)  
-                
-                if result.geturl()!=self.url:
-                    print result.geturl()
-                    raise ValueError(result.geturl())
-
-                html = result.read()
-                break
-            except Exception, e:
-                sec = 10 * (tries + 1) if tries <= 2 else (600 * (tries - 2) if tries < 6 else 3600)
-                time.sleep(sec)
-                tries += 1
-        if tries > 6:
-            return None
-        else:
-            return html
 
 class WeiboParser(object):
     strptime_lock = Lock()
@@ -112,8 +86,8 @@ class WeiboParser(object):
             weibo['ts'] = int(self.parse_datetime(dt_str))
             self.storage.save_weibo(weibo)
         
-        page = GetPage(self.url)
-        html = page.fetch()
+        # page = GetPage(self.url)
+        html = page.fetch(self.url)
         if (html is None): 
             self.error=True
             return
@@ -132,8 +106,9 @@ class WeiboParser(object):
             if (self.error):
                 return
             self.url = 'http://weibo.cn/'+str(self.uid)+'/profile?page='+str(i)
-            page = GetPage(self.url)
-            html = page.fetch()
+            # page = GetPage(self.url)
+            html = page.fetch(self.url)
+            # print html
             if (html is None): 
                 self.error=True
                 return
@@ -150,8 +125,8 @@ class InfoParser(object):
         self.storage = storage
         self.error=False
     def parse(self):
-        page = GetPage(self.url)
-        html = page.fetch()
+        # page = GetPage(self.url)
+        html = page.fetch(self.url)
         if (html is None): 
             self.error=True
             return
@@ -161,7 +136,7 @@ class InfoParser(object):
             return
         tip = doc.find('div.tip')
         i = 0
-        info = {u'经历':[]}
+        info = {u'经历':''}
         #info={}
         for div in divAll('.c'):
             if tip.eq(i).html() != '其他信息':
@@ -174,7 +149,7 @@ class InfoParser(object):
                         continue
                     kv = tuple(itm.split(':', 1))
                     if len(kv) != 2:
-                        info[u'经历'].append(kv[0].strip())
+                        info[u'经历']+="  "+kv[0].strip()
                         continue
                     else:
                         k, v = kv[0], pq(kv[1]).text().strip('更多>>').strip()
@@ -197,8 +172,8 @@ class RelationshipParser(object):
             f_uid=self.storage.get_domain(domain) #判断是否已经解析过
             if f_uid is not None:return f_uid
 
-            page = GetPage("http://weibo.cn/"+domain)
-            html = page.fetch()
+            # page = GetPage("http://weibo.cn/"+domain)
+            html = page.fetch("http://weibo.cn/"+domain)
             if (html is None): 
                 self.error=True
                 return
@@ -221,13 +196,15 @@ class RelationshipParser(object):
             node = pq(this)
             f_uid=node('a:first').attr('href').replace('http://weibo.cn/','').replace('u/','')
             nickname=node('a').eq(1).text()
+
             if (not f_uid.isdigit()):
                 f_uid=_parse_domain(f_uid)
+            # print f_uid
             if (f_uid is None): return
             self.storage.save_user((self.relation,f_uid,nickname,))
 
-        page = GetPage(self.url)
-        html = page.fetch()
+        # page = GetPage(self.url)
+        html = page.fetch(self.url)
         if (html is None): 
             self.error=True
             return
@@ -242,12 +219,13 @@ class RelationshipParser(object):
         if pages > 500:
             pages = 500
         #处理每一页
+        print pages
         for i in range(1,pages+1):
             if (self.error): #如果发生错误
                 return
             self.url = 'http://weibo.cn/'+str(self.uid)+'/'+self.relation+'?page='+str(i)
-            page = GetPage(self.url)
-            html = page.fetch()
+            # page = GetPage(self.url)
+            html = page.fetch(self.url)
             if (html is None): 
                 self.error=True
                 return

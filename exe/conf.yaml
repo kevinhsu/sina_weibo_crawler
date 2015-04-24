@@ -1,0 +1,28 @@
+db: sina
+mode: bundle # also can be `bundle`
+size: 100   # the destination (including bundle or url) size
+limit: 0  # 0 means no restrictions, if greater than 0, means webpages opened per minute.
+threadnum: 1
+master_port: 12104
+port: 12105
+instances: 1
+instance_index: 0
+
+
+mongo:
+    host: localhost
+    port: 27017
+
+login:
+  - username: '************'
+    password: '********'
+
+data:
+    weibo: 0
+    info: 0  
+    follows: 1
+    fans: 0
+
+mypath: 'base/output/'  #最后的‘/’要带上
+
+# startUid: ["3686843257"]#,"3835452637","2265354404","3806005853","5206642448","2241557255","1787072027","3110094923","2162394530"]

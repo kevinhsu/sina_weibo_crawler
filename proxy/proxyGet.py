@@ -48,7 +48,9 @@ class ProxyGet(threading.Thread):
                 right = True
             except Exception:
                 right = False
+                print "sleeping"
                 time.sleep(3)
+                print "waking"
             tries += 1
         if right:
             doc = pq(page)

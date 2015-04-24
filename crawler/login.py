@@ -5,8 +5,8 @@
  Author: Gavin_Han
  Email: muyaohan@gmail.com
 
- changed on 2014-11-26
- Author: Fancy Olive
+ Modified on 2015-4-19
+ Author: Fancy
  Email: springzfx@gmail.com
 '''
 
@@ -19,13 +19,14 @@ import lxml.html as HTML
 class WeiboLogin(object):
     def __init__(self, username=None, pwd=None, cookie_filename=None, enableProxy = False):
         self.headers={'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6','Content-Type':'application/x-www-form-urlencoded'}
-        self.login_url='http://3g.sina.com.cn/prog/wapsite/sso/login.php?ns=1&revalid=2&backURL=http%3A%2F%2Fweibo.cn%2F&backTitle=%D0%C2%C0%CB%CE%A2%B2%A9&vt='
-
+        # self.login_url='http://3g.sina.com.cn/prog/wapsite/sso/login.php?ns=1&revalid=2&backURL=http%3A%2F%2Fweibo.cn%2F&backTitle=%D0%C2%C0%CB%CE%A2%B2%A9&vt='
+        self.login_url='https://login.weibo.cn/login/?ns=1&revalid=2&backURL=http%3A%2F%2Fweibo.cn%2F&backTitle=%CE%A2%B2%A9&vt='
         #获取一个保存cookie的对象
         self.cj = cookielib.LWPCookieJar()
         #从文件中读取cookie
         if cookie_filename is not None:
             self.cj.load(cookie_filename)
+        self.cj.filename=cookie_filename
         #将一个保存cookie对象，和一个HTTP的cookie的处理器绑定
         self.cookie_processor = urllib2.HTTPCookieProcessor(self.cj)
 
@@ -65,15 +66,27 @@ class WeiboLogin(object):
                                  'vk': vk,
                                  'submit': '登录',
                                  'encoding': 'utf-8'})
-        url = 'http://3g.sina.com.cn/prog/wapsite/sso/' + rand
-
+        # url = 'http://3g.sina.com.cn/prog/wapsite/sso/' + rand
+        url= 'https://login.weibo.cn/login/?rand='+rand
         # 模拟提交登陆
         page =self.fetch(url,data)
+        # print page
         link = HTML.fromstring(page).xpath("//a/@href")[0]
-        if not link.startswith('http://'): link = 'http://weibo.cn/%s' % link
+        if not link.startswith('http://'): link = 'http://weibo.cn%s' % link
 
         # 手动跳转到微薄页面
-        self.fetch(link,"")
+        # print link
+
+        # print self.fetch(link,"")
+
+        if self.cj._cookies['.weibo.cn']['/'].has_key('gsid_CTandWM') \
+        and self.cj._cookies['.weibo.cn']['/'].has_key('SUB') \
+        and self.cj._cookies['.weibo.cn']['/'].has_key('_T_WM'):
+            print '%s login success!'%self.username
+        else:
+            print 'Error:  %s login failed!'%self.username
+            return False
+
 
         # 保存cookie
         if cookie_filename is not None:
@@ -81,7 +94,8 @@ class WeiboLogin(object):
         elif self.cj.filename is not None:
             self.cj.save()
 
-        print '%s login success!'%self.username
+        return True
+   
 
     def fetch(self, url,data=''):
         req = urllib2.Request(url,data, headers=self.headers)
@@ -89,5 +103,5 @@ class WeiboLogin(object):
 
 
 if __name__ == "__main__":
-    WBLogin = WeiboLogin("**********", "*********",'../savecookie.txt') #需要传入正确的cookie才能登录
+    WBLogin = WeiboLogin("username", "password",'../conf/savecookie.txt')
     WBLogin.login()
